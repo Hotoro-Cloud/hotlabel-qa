@@ -1,36 +1,30 @@
-from sqlalchemy import Boolean, Column, String, Integer, DateTime, Float, ForeignKey, JSON, Enum
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+from datetime import datetime
+from enum import Enum
 import uuid
-import enum
+from sqlalchemy import Column, String, Float, Integer, DateTime, Enum as SQLAlchemyEnum
+from sqlalchemy.orm import relationship
 
 from app.db.base import Base
 
-class ConsensusStatus(enum.Enum):
+class ConsensusStatus(str, Enum):
     PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    REVIEW = "review"
+    REACHED = "reached"
     FAILED = "failed"
 
-class ConsensusGroup(Base):
-    __tablename__ = "consensus_groups"
+class Consensus(Base):
+    """Consensus model for storing consensus results."""
+    __tablename__ = "consensus"
 
-    id = Column(String, primary_key=True, index=True, default=lambda: f"cg_{uuid.uuid4().hex[:8]}")
-    task_id = Column(String, index=True, nullable=False)
-    
-    # Consensus status
-    status = Column(Enum(ConsensusStatus), default=ConsensusStatus.PENDING)
-    required_validations = Column(Integer, default=3)
-    agreement_threshold = Column(Float, default=0.75)  # 0.75 means 75% agreement required
-    
-    # Results
-    consensus_result = Column(JSON, nullable=True)  # Final agreed-upon result
-    agreement_level = Column(Float, nullable=True)  # Actual agreement achieved
-    
-    # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    completed_at = Column(DateTime(timezone=True), nullable=True)
-    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String(36), nullable=False)
+    status = Column(SQLAlchemyEnum(ConsensusStatus), default=ConsensusStatus.PENDING)
+    agreement_score = Column(Float, default=0.0)
+    validator_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     # Relationships
-    validations = relationship("Validation", back_populates="consensus_group")
+    validations = relationship("Validation", back_populates="consensus")

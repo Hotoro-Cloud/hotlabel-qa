@@ -15,8 +15,10 @@ class ValidationMethod(str, Enum):
 class ValidationStatus(str, Enum):
     PENDING = "pending"
     VALIDATED = "validated"
+    APPROVED = "approved"  # For backward compatibility
     REJECTED = "rejected"
     NEEDS_REVIEW = "needs_review"
+    REVIEW = "review"  # For backward compatibility
 
 class ConfidenceLevel(str, Enum):
     HIGH = "high"
@@ -48,29 +50,29 @@ class ValidationRequest(BaseModel):
     validation_type: Optional[ValidationMethod] = None
 
 # Response model for validation result
-class ValidationResponse(ValidationBase):
+class ValidationResponse(BaseModel):
     id: str
-    validation_method: ValidationMethod
+    task_id: str
     status: ValidationStatus
-    quality_score: float
-    confidence: float
-    confidence_level: ConfidenceLevel = Field(...)
+    validator_id: Optional[str] = None
+    result_id: Optional[str] = None
+    session_id: Optional[str] = None
+    publisher_id: Optional[str] = None
+    validation_method: Optional[ValidationMethod] = None
+    task_type: Optional[str] = None
+    response: Optional[Dict[str, Any]] = None
+    time_spent_ms: Optional[int] = None
+    quality_score: Optional[float] = None
+    confidence_score: Optional[float] = None
+    confidence: Optional[float] = None
+    confidence_level: Optional[ConfidenceLevel] = None
     issues_detected: List[Dict[str, Any]] = []
     feedback: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    metadata: Optional[Dict[str, Any]] = None
     
-    @property
-    def confidence_level(self) -> ConfidenceLevel:
-        # This would normally be a method in the schema, but I'm showing it as a computed field
-        from app.core.config import settings
-        
-        if self.confidence >= settings.HIGH_CONFIDENCE_THRESHOLD:
-            return ConfidenceLevel.HIGH
-        elif self.confidence >= settings.MEDIUM_CONFIDENCE_THRESHOLD:
-            return ConfidenceLevel.MEDIUM
-        else:
-            return ConfidenceLevel.LOW
+    # Remove the property since it's now an optional field
     
     class Config:
         orm_mode = True

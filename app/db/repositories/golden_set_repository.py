@@ -8,6 +8,15 @@ class GoldenSetRepository:
         self.db = db
     
     def create(self, golden_set_data: GoldenSetCreate) -> GoldenSet:
+        # Get confidence_score from the original dict if available
+        confidence_score = getattr(golden_set_data, "confidence_score", None)
+        if confidence_score is None and hasattr(golden_set_data, "__dict__"):
+            confidence_score = golden_set_data.__dict__.get("confidence_score")
+        if confidence_score is None and isinstance(golden_set_data, dict):
+            confidence_score = golden_set_data.get("confidence_score")
+        if confidence_score is None:
+            confidence_score = 1.0
+            
         db_golden_set = GoldenSet(
             task_id=golden_set_data.task_id,
             expected_response=golden_set_data.expected_response,
@@ -15,7 +24,8 @@ class GoldenSetRepository:
             hints=golden_set_data.hints,
             difficulty_level=golden_set_data.difficulty_level,
             category=golden_set_data.category,
-            tags=golden_set_data.tags
+            tags=golden_set_data.tags,
+            confidence_score=confidence_score
         )
         self.db.add(db_golden_set)
         self.db.commit()
@@ -66,3 +76,27 @@ class GoldenSetRepository:
         # This is a simplified version using RANDOM() function
         from sqlalchemy.sql.expression import func
         return query.order_by(func.random()).first()
+        
+    def list(self, filters: Dict[str, Any] = None, limit: int = 100, offset: int = 0) -> List[GoldenSet]:
+        """List golden sets with optional filters"""
+        query = self.db.query(GoldenSet)
+        
+        if filters:
+            if "category" in filters:
+                query = query.filter(GoldenSet.category == filters["category"])
+            if "status" in filters:
+                query = query.filter(GoldenSet.status == filters["status"])
+            if "min_confidence" in filters:
+                query = query.filter(GoldenSet.confidence_score >= filters["min_confidence"])
+        
+        return query.limit(limit).offset(offset).all()
+        
+    def delete(self, golden_set_id: str) -> bool:
+        """Delete a golden set"""
+        db_golden_set = self.get_by_id(golden_set_id)
+        if not db_golden_set:
+            return False
+        
+        self.db.delete(db_golden_set)
+        self.db.commit()
+        return True

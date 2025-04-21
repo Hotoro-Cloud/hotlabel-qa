@@ -1,95 +1,78 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.models.consensus import ConsensusGroup, ConsensusStatus
-from app.models.validation import Validation
-from app.schemas.consensus import ConsensusGroupCreate
+from sqlalchemy import func
+
+from app.models.consensus import Consensus, ConsensusStatus
+from app.schemas.consensus import ConsensusCreate, ConsensusUpdate, ConsensusFilter
 
 class ConsensusRepository:
     def __init__(self, db: Session):
         self.db = db
-    
-    def create(self, consensus_data: ConsensusGroupCreate) -> ConsensusGroup:
-        db_consensus = ConsensusGroup(
-            task_id=consensus_data.task_id,
-            required_validations=consensus_data.required_validations,
-            agreement_threshold=consensus_data.agreement_threshold
-        )
+
+    def create(self, consensus_create: ConsensusCreate) -> Consensus:
+        """Create a new consensus record."""
+        db_consensus = Consensus(**consensus_create.model_dump())
         self.db.add(db_consensus)
         self.db.commit()
         self.db.refresh(db_consensus)
         return db_consensus
-    
-    def get_by_id(self, consensus_id: str) -> Optional[ConsensusGroup]:
-        return self.db.query(ConsensusGroup).filter(ConsensusGroup.id == consensus_id).first()
-    
-    def get_by_task_id(self, task_id: str) -> Optional[ConsensusGroup]:
-        return self.db.query(ConsensusGroup).filter(ConsensusGroup.task_id == task_id).first()
-    
-    def list_pending_groups(self) -> List[ConsensusGroup]:
-        return self.db.query(ConsensusGroup)\
-            .filter(ConsensusGroup.status.in_([ConsensusStatus.PENDING, ConsensusStatus.IN_PROGRESS]))\
-            .all()
-    
-    def update(self, consensus_id: str, update_data: Dict[str, Any]) -> Optional[ConsensusGroup]:
-        db_consensus = self.get_by_id(consensus_id)
+
+    def get_by_task_id(self, task_id: str) -> Optional[Consensus]:
+        """Get consensus by task ID."""
+        return self.db.query(Consensus).filter(Consensus.task_id == task_id).first()
+
+    def list_consensus(self, filters: ConsensusFilter) -> List[Consensus]:
+        """List consensus records with filters."""
+        query = self.db.query(Consensus)
+
+        if filters.status:
+            query = query.filter(Consensus.status == filters.status)
+        if filters.min_agreement_score is not None:
+            query = query.filter(Consensus.agreement_score >= filters.min_agreement_score)
+
+        return query.offset(filters.skip).limit(filters.limit).all()
+
+    def update(self, task_id: str, consensus_update: ConsensusUpdate) -> Optional[Consensus]:
+        """Update consensus record."""
+        db_consensus = self.get_by_task_id(task_id)
         if not db_consensus:
             return None
-        
-        for key, value in update_data.items():
-            setattr(db_consensus, key, value)
-        
+
+        update_data = consensus_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(db_consensus, field, value)
+
         self.db.commit()
         self.db.refresh(db_consensus)
         return db_consensus
-    
-    def add_validation(self, consensus_id: str, validation: Validation) -> Optional[ConsensusGroup]:
-        db_consensus = self.get_by_id(consensus_id)
+
+    def delete(self, task_id: str) -> bool:
+        """Delete consensus record."""
+        db_consensus = self.get_by_task_id(task_id)
         if not db_consensus:
-            return None
-        
-        # Update validation with consensus group ID
-        validation.consensus_group_id = consensus_id
-        
-        # Update consensus group status
-        if db_consensus.status == ConsensusStatus.PENDING:
-            db_consensus.status = ConsensusStatus.IN_PROGRESS
-        
+            return False
+
+        self.db.delete(db_consensus)
         self.db.commit()
-        self.db.refresh(db_consensus)
-        return db_consensus
-    
-    def get_validations(self, consensus_id: str) -> List[Validation]:
-        return self.db.query(Validation)\
-            .filter(Validation.consensus_group_id == consensus_id)\
-            .all()
-    
-    def check_and_update_consensus(self, consensus_id: str) -> Optional[ConsensusGroup]:
-        db_consensus = self.get_by_id(consensus_id)
-        if not db_consensus:
-            return None
+        return True
+
+    def get_statistics(self) -> dict:
+        """Get consensus statistics."""
+        total = self.db.query(func.count(Consensus.task_id)).scalar()
         
-        validations = self.get_validations(consensus_id)
-        validation_count = len(validations)
-        
-        # Check if we have enough validations to determine consensus
-        if validation_count >= db_consensus.required_validations:
-            # Implement consensus calculation logic here
-            # This is a simplified example - actual implementation would be more complex
-            
-            # For demonstration: calculate average of all validations
-            # In reality, this would be a more sophisticated algorithm comparing responses
-            from app.services.consensus import calculate_consensus
-            consensus_result, agreement_level = calculate_consensus(validations)
-            
-            if agreement_level >= db_consensus.agreement_threshold:
-                db_consensus.status = ConsensusStatus.COMPLETED
-                db_consensus.consensus_result = consensus_result
-                db_consensus.agreement_level = agreement_level
-                db_consensus.completed_at = import_module('sqlalchemy.sql').func.now()
-            elif validation_count >= db_consensus.required_validations * 2:  # If we have twice the required validations but still no consensus
-                db_consensus.status = ConsensusStatus.FAILED
-            
-            self.db.commit()
-            self.db.refresh(db_consensus)
-        
-        return db_consensus
+        status_distribution = {}
+        for status in ConsensusStatus:
+            count = self.db.query(func.count(Consensus.task_id)).filter(
+                Consensus.status == status
+            ).scalar()
+            status_distribution[status] = count
+
+        avg_agreement = self.db.query(
+            func.avg(Consensus.agreement_score)
+        ).scalar() or 0.0
+
+        return {
+            "total_count": total,
+            "status_distribution": status_distribution,
+            "average_agreement_score": float(avg_agreement)
+        }

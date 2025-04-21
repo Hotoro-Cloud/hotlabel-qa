@@ -3,8 +3,10 @@ from sqlalchemy import Boolean, Column, String, Integer, DateTime, Float, JSON, 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
+from datetime import datetime
 
 from app.db.base import Base
+from app.models.consensus import ConsensusStatus
 
 class ValidationMethod(enum.Enum):
     GOLDEN_SET = "golden_set"
@@ -14,42 +16,30 @@ class ValidationMethod(enum.Enum):
     THRESHOLD = "threshold"
     MANUAL = "manual"
 
-class ValidationStatus(enum.Enum):
+class ValidationStatus(str, enum.Enum):
     PENDING = "pending"
     VALIDATED = "validated"
+    APPROVED = "approved"  # For backward compatibility
     REJECTED = "rejected"
     NEEDS_REVIEW = "needs_review"
+    REVIEW = "review"  # For backward compatibility
 
 class Validation(Base):
     __tablename__ = "validations"
 
-    id = Column(String, primary_key=True, index=True, default=lambda: f"val_{uuid.uuid4().hex[:8]}")
-    task_id = Column(String, index=True)
-    result_id = Column(String, index=True)
-    session_id = Column(String, index=True)
-    publisher_id = Column(String, index=True)
-    
-    # Validation details
-    validation_method = Column(Enum(ValidationMethod), nullable=False)
-    status = Column(Enum(ValidationStatus), default=ValidationStatus.PENDING)
-    quality_score = Column(Float, default=0.0)
-    confidence = Column(Float, default=0.0)
-    
-    # Issues detected
-    issues_detected = Column(JSON, default=list)
-    feedback = Column(String, nullable=True)
-    
-    # Result content
-    task_type = Column(String, index=True)
-    response = Column(JSON, default=dict)
-    time_spent_ms = Column(Integer, nullable=True)
-    
-    # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id = Column(String(36), ForeignKey("tasks.id"), nullable=False)
+    validator_id = Column(String(36), ForeignKey("validators.id"), nullable=False)
+    consensus_id = Column(String(36), ForeignKey("consensus.id"), nullable=True)
+    status = Column(Enum(ValidationStatus), nullable=False)
+    confidence_score = Column(Float, nullable=True)
+    validation_metadata = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     # Relationships
-    quality_metrics = relationship("QualityMetric", back_populates="validation")
+    task = relationship("Task", back_populates="validations")
+    validator = relationship("Validator", back_populates="validations")
+    consensus = relationship("Consensus", back_populates="validations")
+    metrics = relationship("Metrics", back_populates="validation", uselist=False)
     golden_set_validation = relationship("GoldenSet", back_populates="validation", uselist=False)
-    consensus_group_id = Column(String, ForeignKey("consensus_groups.id"), nullable=True)
-    consensus_group = relationship("ConsensusGroup", back_populates="validations")

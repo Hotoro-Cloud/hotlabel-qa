@@ -82,3 +82,31 @@ class ValidationRepository:
             query = query.filter(Validation.created_at <= end_date)
         
         return query.all()
+        
+    def get_by_date_range(self, start_date, end_date) -> List[Validation]:
+        """Get validations within a date range"""
+        query = self.db.query(Validation)
+        
+        if start_date:
+            query = query.filter(Validation.created_at >= start_date)
+        
+        if end_date:
+            query = query.filter(Validation.created_at <= end_date)
+        
+        return query.all()
+        
+    def list(self, filters: Dict[str, Any] = None) -> List[Validation]:
+        """List validations with optional filters"""
+        query = self.db.query(Validation)
+        
+        if filters:
+            for key, value in filters.items():
+                if hasattr(Validation, key):
+                    query = query.filter(getattr(Validation, key) == value)
+        
+        return query.all()
+        
+    def delete(self, validation: Validation) -> None:
+        """Delete a validation"""
+        self.db.delete(validation)
+        self.db.commit()

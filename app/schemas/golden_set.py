@@ -8,7 +8,7 @@ class GoldenSetBase(BaseModel):
     allowed_variation: float = 0.0
     hints: List[str] = []
     difficulty_level: int = 1
-    category: str
+    category: Optional[str] = "unknown"
     tags: List[str] = []
 
 class GoldenSetCreate(GoldenSetBase):
@@ -17,6 +17,8 @@ class GoldenSetCreate(GoldenSetBase):
 class GoldenSetResponse(GoldenSetBase):
     id: str
     validation_id: Optional[str] = None
+    status: Optional[str] = "pending"
+    confidence_score: float = 1.0
     created_at: datetime
     updated_at: Optional[datetime] = None
     

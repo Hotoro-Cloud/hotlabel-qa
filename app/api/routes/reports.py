@@ -1,97 +1,80 @@
-from typing import Any, List, Optional
+from typing import List, Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
-from app.services.report_service import ReportService
-from app.schemas.report import QualityReportCreate, QualityReportResponse, ReportStatus, ReportType
-from app.api.deps import get_report_service
+from app.db.session import get_db
+from app.db.repositories.reports_repository import ReportsRepository
+from app.schemas.reports import ReportCreate, ReportUpdate, ReportResponse
+from app.models.reports import ReportType, ReportStatus
 from app.core.exceptions import ResourceNotFound
 
-router = APIRouter(prefix="/quality", tags=["reports"])
+reports_router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
-@router.post("/reports", response_model=QualityReportResponse)
-async def create_report(report: QualityReportCreate, service: ReportService = Depends(get_report_service)) -> Any:
-    """
-    Submit a quality issue report.
-    
-    This endpoint allows users to report potential quality issues for manual review.
-    """
-    try:
-        result = await service.create_report(report)
-        return result
-    except ResourceNotFound as e:
-        raise HTTPException(status_code=404, detail={
-            "code": e.code,
-            "message": e.message,
-            "details": e.details
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={
-            "code": "internal_error",
-            "message": "An unexpected error occurred",
-            "details": {"error": str(e)}
-        })
+@reports_router.post("/", response_model=ReportResponse)
+def create_report(
+    report_create: ReportCreate,
+    db: Session = Depends(get_db)
+) -> ReportResponse:
+    """Create a new report."""
+    repository = ReportsRepository(db)
+    return repository.create(report_create)
 
-@router.get("/reports/{report_id}", response_model=QualityReportResponse)
-async def get_report(report_id: str, service: ReportService = Depends(get_report_service)) -> Any:
-    """
-    Get a report by ID.
-    """
-    try:
-        result = await service.get_report(report_id)
-        return result
-    except ResourceNotFound as e:
-        raise HTTPException(status_code=404, detail={
-            "code": e.code,
-            "message": e.message,
-            "details": e.details
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={
-            "code": "internal_error",
-            "message": "An unexpected error occurred",
-            "details": {"error": str(e)}
-        })
-
-@router.get("/reports", response_model=List[QualityReportResponse])
-async def list_reports(
-    publisher_id: Optional[str] = None,
-    task_id: Optional[str] = None,
-    service: ReportService = Depends(get_report_service)
-) -> Any:
-    """
-    List quality reports, optionally filtered by publisher or task.
-    """
-    try:
-        result = await service.list_reports(publisher_id, task_id)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={
-            "code": "internal_error",
-            "message": "An unexpected error occurred",
-            "details": {"error": str(e)}
-        })
-
-@router.patch("/reports/{report_id}/status", response_model=QualityReportResponse)
-async def update_report_status(
+@reports_router.get("/{report_id}", response_model=ReportResponse)
+def get_report(
     report_id: str,
-    status: ReportStatus,
-    service: ReportService = Depends(get_report_service)
-) -> Any:
-    """
-    Update the status of a report.
-    """
-    try:
-        result = await service.update_report_status(report_id, status)
-        return result
-    except ResourceNotFound as e:
-        raise HTTPException(status_code=404, detail={
-            "code": e.code,
-            "message": e.message,
-            "details": e.details
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={
-            "code": "internal_error",
-            "message": "An unexpected error occurred",
-            "details": {"error": str(e)}
-        })
+    db: Session = Depends(get_db)
+) -> ReportResponse:
+    """Get report by ID."""
+    repository = ReportsRepository(db)
+    report = repository.get_by_id(report_id)
+    if not report:
+        raise ResourceNotFound("Report", report_id)
+    return report
+
+@reports_router.get("/", response_model=List[ReportResponse])
+def list_reports(
+    report_type: Optional[ReportType] = None,
+    status: Optional[ReportStatus] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db)
+) -> List[ReportResponse]:
+    """List reports with optional filters."""
+    repository = ReportsRepository(db)
+    return repository.list_reports(report_type, status, skip, limit)
+
+@reports_router.patch("/{report_id}", response_model=ReportResponse)
+def update_report(
+    report_id: str,
+    report_update: ReportUpdate,
+    db: Session = Depends(get_db)
+) -> ReportResponse:
+    """Update report."""
+    repository = ReportsRepository(db)
+    update_data = report_update.model_dump(exclude_unset=True)
+    report = repository.update(report_id, update_data)
+    if not report:
+        raise ResourceNotFound("Report", report_id)
+    return report
+
+@reports_router.delete("/{report_id}", status_code=204)
+def delete_report(
+    report_id: str,
+    db: Session = Depends(get_db)
+) -> None:
+    """Delete report."""
+    repository = ReportsRepository(db)
+    if not repository.delete(report_id):
+        raise ResourceNotFound("Report", report_id)
+
+@reports_router.get("/date-range/", response_model=List[ReportResponse])
+def get_reports_by_date_range(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    report_type: Optional[ReportType] = None,
+    db: Session = Depends(get_db)
+) -> List[ReportResponse]:
+    """Get reports within a date range."""
+    repository = ReportsRepository(db)
+    return repository.get_reports_by_date_range(start_date, end_date, report_type)

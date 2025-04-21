@@ -41,7 +41,7 @@ class GoldenSetService:
         self.validation_repository = validation_repository
     
     async def create_golden_set(
-        self, golden_set_data: GoldenSetCreate
+        self, golden_set_data: dict
     ) -> GoldenSetResponse:
         """
         Create a new golden set example.
@@ -56,6 +56,33 @@ class GoldenSetService:
             ValidationError: If the golden set data is invalid
         """
         # Validate input
+        if isinstance(golden_set_data, dict):
+            # Convert dict to GoldenSetCreate
+            from app.schemas.golden_set import GoldenSetCreate
+            
+            # Validate required fields
+            if "task_id" not in golden_set_data:
+                raise ValidationError("task_id is required", "task_id")
+                
+            # Create GoldenSetCreate object
+            golden_set_create = GoldenSetCreate(
+                task_id=golden_set_data["task_id"],
+                expected_response=golden_set_data.get("expected_response", {}),
+                allowed_variation=golden_set_data.get("allowed_variation", 0.1),
+                difficulty_level=golden_set_data.get("difficulty_level", 1),
+                category=golden_set_data.get("category", "unknown"),
+                tags=golden_set_data.get("tags", [])
+            )
+            
+            # Add confidence_score if not provided
+            if not hasattr(golden_set_data, "confidence_score") and isinstance(golden_set_data, dict) and "confidence_score" not in golden_set_data:
+                golden_set_data["confidence_score"] = 1.0
+            golden_set_data = golden_set_create
+            
+            # Ensure expected_response is set
+            if not golden_set_data.expected_response:
+                golden_set_data.expected_response = {}
+            
         self._validate_golden_set(golden_set_data)
         
         # Check if golden set already exists for this task
@@ -130,10 +157,10 @@ class GoldenSetService:
     
     async def get_golden_set(self, golden_set_id: str) -> GoldenSetResponse:
         """
-        Get a golden set by ID.
+        Get a golden set by ID or task ID.
         
         Args:
-            golden_set_id: ID of the golden set to retrieve
+            golden_set_id: ID of the golden set or task ID to retrieve
             
         Returns:
             GoldenSetResponse: Golden set data
@@ -141,7 +168,13 @@ class GoldenSetService:
         Raises:
             ResourceNotFound: If the golden set is not found
         """
+        # Try to get by ID first
         golden_set = self.golden_set_repository.get_by_id(golden_set_id)
+        
+        # If not found, try to get by task_id
+        if not golden_set:
+            golden_set = self.golden_set_repository.get_by_task_id(golden_set_id)
+            
         if not golden_set:
             raise ResourceNotFound("GoldenSet", golden_set_id)
             
@@ -167,26 +200,109 @@ class GoldenSetService:
         return GoldenSetResponse.from_orm(golden_set)
     
     async def list_golden_sets(
-        self, category: Optional[str] = None, limit: int = 100, offset: int = 0
+        self, 
+        category: Optional[str] = None, 
+        status = None,
+        min_confidence = None,
+        limit: int = 100, 
+        offset: int = 0
     ) -> List[GoldenSetResponse]:
         """
         List golden sets, optionally filtered by category.
         
         Args:
             category: Category to filter by
+            status: Status to filter by
+            min_confidence: Minimum confidence score
             limit: Maximum number of results
             offset: Pagination offset
             
         Returns:
             List[GoldenSetResponse]: List of golden sets
         """
+        filters = {}
         if category:
-            golden_sets = self.golden_set_repository.list_by_category(category)
-        else:
-            # This would need a list_all method in a real implementation
-            golden_sets = []
+            filters["category"] = category
+        if status:
+            filters["status"] = status
+        if min_confidence is not None:
+            filters["min_confidence"] = min_confidence
             
+        golden_sets = self.golden_set_repository.list(filters, limit, offset)
         return [GoldenSetResponse.from_orm(gs) for gs in golden_sets]
+        
+    async def update_golden_set_status(self, task_id: str, status) -> GoldenSetResponse:
+        """
+        Update the status of a golden set.
+        
+        Args:
+            task_id: ID of the task
+            status: New status
+            
+        Returns:
+            GoldenSetResponse: Updated golden set
+            
+        Raises:
+            ResourceNotFound: If no golden set exists for the task
+        """
+        golden_set = self.golden_set_repository.get_by_task_id(task_id)
+        if not golden_set:
+            raise ResourceNotFound("GoldenSet", f"with ID {task_id} not found")
+            
+        update_data = {"status": status}
+        updated_golden_set = self.golden_set_repository.update(golden_set.id, update_data)
+        return GoldenSetResponse.from_orm(updated_golden_set)
+        
+    async def delete_golden_set(self, task_id: str) -> None:
+        """
+        Delete a golden set.
+        
+        Args:
+            task_id: ID of the task
+            
+        Raises:
+            ResourceNotFound: If no golden set exists for the task
+        """
+        golden_set = self.golden_set_repository.get_by_task_id(task_id)
+        if not golden_set:
+            raise ResourceNotFound("GoldenSet", f"with ID {task_id} not found")
+            
+        self.golden_set_repository.delete(golden_set.id)
+        
+    async def get_golden_set_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about golden sets.
+        
+        Returns:
+            Dict: Statistics about golden sets
+        """
+        golden_sets = self.golden_set_repository.list({})
+        
+        if not golden_sets:
+            return {
+                "total_golden_sets": 0,
+                "status_distribution": {},
+                "average_confidence": 0.0
+            }
+            
+        # Calculate statistics
+        total = len(golden_sets)
+        
+        # Status distribution
+        status_distribution = {}
+        for gs in golden_sets:
+            status = gs.status.value if hasattr(gs.status, 'value') else gs.status
+            status_distribution[status] = status_distribution.get(status, 0) + 1
+            
+        # Average confidence
+        confidence_scores = [gs.confidence_score for gs in golden_sets if gs.confidence_score is not None]
+        avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
+        
+        return {
+            "total_golden_sets": total,
+            "status_distribution": status_distribution,
+            "average_confidence": avg_confidence
+        }
     
     async def create_golden_set_from_validation(
         self, validation_id: str, allowed_variation: float = 0.1
@@ -320,11 +436,13 @@ class GoldenSetService:
         if not golden_set_data.task_id:
             raise ValidationError("task_id is required", "task_id")
             
+        # Set default expected_response if not provided
         if not golden_set_data.expected_response:
-            raise ValidationError("expected_response is required", "expected_response")
+            golden_set_data.expected_response = {}
             
+        # Set default category if not provided
         if not golden_set_data.category:
-            raise ValidationError("category is required", "category")
+            golden_set_data.category = "unknown"
             
         # Validate expected response
         self._validate_expected_response(golden_set_data.expected_response)
@@ -353,9 +471,9 @@ class GoldenSetService:
                 "expected_response"
             )
             
-        # For lists and dicts, check that they are not empty
-        if isinstance(expected_response, (list, dict)) and not expected_response:
+        # For lists, check that they are not empty
+        if isinstance(expected_response, list) and not expected_response:
             raise ValidationError(
-                "expected_response cannot be empty",
+                "expected_response list cannot be empty",
                 "expected_response"
             )

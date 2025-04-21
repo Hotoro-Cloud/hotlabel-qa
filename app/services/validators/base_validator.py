@@ -3,7 +3,8 @@ Base validator class for quality assurance.
 
 This abstract base class defines the interface that all validators must implement.
 """
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, Optional
+from app.models.validation import Validation
 
 class BaseValidator:
     """
@@ -13,23 +14,30 @@ class BaseValidator:
     the validate method.
     """
     
-    async def validate(
-        self, task_id: str, response: Any, session_id: str, **kwargs
-    ) -> Tuple[float, float, List[Dict[str, Any]], Optional[str]]:
+    async def validate(self, task_id: str, validation_data: Dict[str, Any]) -> Validation:
         """
-        Validate a response.
+        Validate a task.
         
         Args:
             task_id: ID of the task being validated
-            response: The response to validate
-            session_id: Session ID of the user
-            **kwargs: Additional validation context
+            validation_data: Data needed for validation
             
         Returns:
-            Tuple containing:
-            - quality_score (float): 0-1 score indicating response quality
-            - confidence (float): 0-1 score indicating confidence in the validation
-            - issues (list): List of detected issues
-            - feedback (str): Optional feedback for the user
+            Validation object containing the validation results
         """
         raise NotImplementedError("Subclasses must implement validate method")
+    
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        Get validator metadata.
+        
+        Returns:
+            Dictionary containing validator metadata
+        """
+        raise NotImplementedError("Subclasses must implement get_metadata method")
+    
+    async def cleanup(self) -> None:
+        """
+        Cleanup any resources used by the validator.
+        """
+        pass

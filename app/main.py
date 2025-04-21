@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from app.api.routes import validation, metrics, reports, admin
 from app.core.config import settings
 from app.core.exceptions import ServiceException
+from app.db.base_class import *  # Import all models
 
 # Configure logging
 logging.basicConfig(
@@ -18,12 +19,10 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="HotLabel Quality Assurance API",
-    description="API for validating, verifying, and assessing task results in the HotLabel platform",
-    version="0.1.0",
-    docs_url=None,  # Disable default docs
-    redoc_url=None,  # Disable default redoc
-    openapi_url=None,  # Disable default openapi
+    title=settings.SERVICE_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    docs_url=None,
+    redoc_url=None,
 )
 
 # Add CORS middleware
@@ -36,10 +35,10 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(validation.router, prefix=settings.API_V1_STR)
-app.include_router(metrics.router, prefix=settings.API_V1_STR)
-app.include_router(reports.router, prefix=settings.API_V1_STR)
-app.include_router(admin.router, prefix=settings.API_V1_STR)
+app.include_router(validation.validation_router)
+app.include_router(metrics.metrics_router)
+app.include_router(reports.reports_router)
+app.include_router(admin.admin_router)
 
 # Exception handlers
 @app.exception_handler(ServiceException)
