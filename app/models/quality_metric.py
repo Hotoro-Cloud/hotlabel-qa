@@ -15,7 +15,7 @@ class QualityMetric(Base):
     metric_type = Column(String, nullable=False, index=True)
     value = Column(Float, nullable=False)
     weight = Column(Float, default=1.0)
-    metadata = Column(JSON, default=dict)
+    metric_metadata = Column(JSON, default=dict)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())

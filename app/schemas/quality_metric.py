@@ -6,7 +6,7 @@ class QualityMetricBase(BaseModel):
     metric_type: str
     value: float
     weight: float = 1.0
-    metadata: Dict[str, Any] = {}
+    metric_metadata: Dict[str, Any] = {}
 
 class QualityMetricCreate(QualityMetricBase):
     validation_id: str
