@@ -179,11 +179,107 @@ hotlabel-qa/
 
 ### Testing
 
-Run tests using pytest:
+The HotLabel QA Service uses a comprehensive testing suite to ensure code quality and functionality. The tests are organized by component type and cover all layers of the application.
+
+#### Testing Framework
+
+- **Pytest**: The project uses pytest as the main testing framework
+- **Coverage Reporting**: Test coverage is tracked and reported
+- **Async Support**: Tests support asynchronous code execution
+- **In-memory Database**: Tests use SQLite in-memory database for isolation
+
+#### Test Categories
+
+The test suite is organized into several categories, each with a specific focus:
+
+- **API Tests** (`tests/api/`): Test HTTP endpoints, request validation, and response formatting
+  - Validate endpoint behavior for validation creation, retrieval, updates, and listing
+  - Test error handling and edge cases (e.g., resource not found)
+  - Ensure proper status codes and response formats
+
+- **Service Tests** (`tests/services/`): Test business logic and service layer functionality
+  - Validate core validation service operations
+  - Test consensus service for agreement calculation
+  - Verify golden set service for reference data management
+  - Test metrics service for quality measurement
+
+- **Model Tests** (`tests/models/`): Test data models and database interactions
+  - Validate model relationships and constraints
+  - Test enum values and conversions
+  - Ensure proper data persistence
+
+- **Validator Tests** (`tests/services/validators/`): Test validation strategies
+  - Test threshold-based validation with different confidence levels
+  - Validate golden set comparison logic
+  - Test statistical validation methods
+  - Verify bot detection algorithms
+
+#### Test Fixtures
+
+The project uses fixtures (defined in `conftest.py`) to set up test environments:
+
+- Database session fixtures for transaction isolation
+- API client fixtures for endpoint testing
+- Redis client fixtures for caching tests
+- Service fixtures for dependency injection
+
+#### Running Tests
+
+Basic test execution:
 
 ```bash
+# Run all tests
 pytest
+
+# Run with verbose output
+pytest -v
+
+# Run tests with coverage report
+pytest --cov=app
 ```
+
+Running specific test categories:
+
+```bash
+# Run only API tests
+pytest tests/api/
+
+# Run only service tests
+pytest tests/services/
+
+# Run tests for a specific file
+pytest tests/services/test_validation_service.py
+
+# Run a specific test
+pytest tests/api/test_validation_routes.py::test_create_validation
+```
+
+Test markers can be used to run specific types of tests:
+
+```bash
+# Run unit tests
+pytest -m unit
+
+# Run integration tests
+pytest -m integration
+
+# Run API tests
+pytest -m api
+```
+
+#### Coverage Reports
+
+The test suite generates coverage reports to identify untested code:
+
+```bash
+# Generate HTML coverage report
+pytest --cov=app --cov-report=html
+
+# View missing coverage
+pytest --cov=app --cov-report=term-missing
+```
+
+After running tests with coverage, you can view the HTML report in the `htmlcov/` directory.
 
 ## Contributing
 
