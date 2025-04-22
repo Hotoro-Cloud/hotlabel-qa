@@ -17,16 +17,37 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create enum types
-    op.execute("CREATE TYPE validationmethod AS ENUM ('golden_set', 'consensus', 'statistical', 'bot_detection', 'threshold', 'manual')")
-    op.execute("CREATE TYPE validationstatus AS ENUM ('pending', 'validated', 'rejected', 'needs_review')")
-    op.execute("CREATE TYPE consensusstatus AS ENUM ('pending', 'in_progress', 'completed', 'failed')")
+    # Create enum types if they do not exist
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'validationmethod') THEN
+            CREATE TYPE validationmethod AS ENUM ('golden_set', 'consensus', 'statistical', 'bot_detection', 'threshold', 'manual');
+        END IF;
+    END$$;
+    """)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'validationstatus') THEN
+            CREATE TYPE validationstatus AS ENUM ('pending', 'validated', 'rejected', 'needs_review');
+        END IF;
+    END$$;
+    """)
+    op.execute("""
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'consensusstatus') THEN
+            CREATE TYPE consensusstatus AS ENUM ('pending', 'in_progress', 'completed', 'failed');
+        END IF;
+    END$$;
+    """)
     
     # Create tables
     op.create_table('consensus_groups',
         sa.Column('id', sa.String(), nullable=False),
         sa.Column('task_id', sa.String(), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'in_progress', 'completed', 'failed', name='consensusstatus'), nullable=True),
+        sa.Column('status', postgresql.ENUM('pending', 'in_progress', 'completed', 'failed', name='consensusstatus', create_type=False), nullable=True),
         sa.Column('required_validations', sa.Integer(), nullable=True),
         sa.Column('agreement_threshold', sa.Float(), nullable=True),
         sa.Column('consensus_result', sa.JSON(), nullable=True),
@@ -64,8 +85,8 @@ def upgrade() -> None:
         sa.Column('result_id', sa.String(), nullable=True),
         sa.Column('session_id', sa.String(), nullable=True),
         sa.Column('publisher_id', sa.String(), nullable=True),
-        sa.Column('validation_method', sa.Enum('golden_set', 'consensus', 'statistical', 'bot_detection', 'threshold', 'manual', name='validationmethod'), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'validated', 'rejected', 'needs_review', name='validationstatus'), nullable=True),
+        sa.Column('validation_method', postgresql.ENUM('golden_set', 'consensus', 'statistical', 'bot_detection', 'threshold', 'manual', name='validationmethod', create_type=False), nullable=False),
+        sa.Column('status', postgresql.ENUM('pending', 'validated', 'rejected', 'needs_review', name='validationstatus', create_type=False), nullable=True),
         sa.Column('quality_score', sa.Float(), nullable=True),
         sa.Column('confidence', sa.Float(), nullable=True),
         sa.Column('issues_detected', sa.JSON(), nullable=True),

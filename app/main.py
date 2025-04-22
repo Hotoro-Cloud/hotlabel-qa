@@ -25,6 +25,16 @@ app = FastAPI(
     redoc_url=None,
 )
 
+# Log Redis connectivity on startup
+@app.on_event("startup")
+async def log_redis_connectivity():
+    from app.core.redis import get_redis_pool
+    try:
+        pool = await get_redis_pool()
+        await pool.ping()
+    except Exception as e:
+        logger.error(f"Redis connectivity check failed on startup: {e}")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
