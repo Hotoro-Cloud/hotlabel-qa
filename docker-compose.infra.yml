@@ -14,6 +14,12 @@ services:
       - SERVICE_NAME=quality-assurance
       - TASK_SERVICE_URL=http://tasks:8000/api/v1
       - USER_SERVICE_URL=http://users:8000/api/v1
+      - SECRET_KEY=your-secure-key-here
+      - HIGH_CONFIDENCE_THRESHOLD=0.85
+      - MEDIUM_CONFIDENCE_THRESHOLD=0.60
+      - GOLDEN_SET_PERCENTAGE=0.10
+      - CONSENSUS_REQUIRED_AGREEMENT=0.75
+      - MINIMUM_CONSENSUS_VALIDATORS=3
     networks:
       - hotlabel-network
     restart: always
@@ -23,6 +29,28 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    depends_on:
+      - postgres
+      - redis
+
+  # Reference to external services (these won't be created but help with dependencies)
+  postgres:
+    image: postgres:15
+    container_name: hotlabel-postgres
+    networks:
+      - hotlabel-network
+    restart: "no"
+    deploy:
+      replicas: 0
+    
+  redis:
+    image: redis:7
+    container_name: hotlabel-redis
+    networks:
+      - hotlabel-network
+    restart: "no"
+    deploy:
+      replicas: 0
 
 networks:
   hotlabel-network:
