@@ -30,18 +30,18 @@ The HotLabel Quality Assurance (QA) Service is a critical component of the HotLa
 The QA service follows a clean architecture pattern with proper separation of concerns:
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  API Layer      │────▶│  Service Layer  │────▶│  Data Layer     │
-│  (FastAPI)      │◀────│  (Business      │◀────│  (Repositories, │
-└─────────────────┘     │   Logic)        │     │   Models)       │
-                         └─────────────────┘     └─────────────────┘
-                                  │
-                                  ▼
-                         ┌─────────────────┐
-                         │  Validators     │
-                         │  (Strategy      │
-                         │   Pattern)      │
-                         └─────────────────┘
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  API Layer       │─────┼─►│  Service Layer  │─────┼─►│  Data Layer     │
+│  (FastAPI)       │  ↗  │  (Business       │  ↗  │  (Repositories,  │
+└──────────────────┘     │    Logic)         │     │    Models)       │
+                         └──────────────────┘     └──────────────────┘
+                               │
+                               ▼
+                         ┌──────────────────┐
+                         │  Validators      │
+                         │  (Strategy       │
+                         │   Pattern)       │
+                         └──────────────────┘
 ```
 
 ## Getting Started
@@ -91,6 +91,40 @@ docker-compose up -d
 ```
 
 This will start the QA service along with PostgreSQL and Redis.
+
+### Running with HotLabel Infrastructure
+
+To run the QA service as part of the complete HotLabel platform:
+
+1. Clone the infrastructure repository:
+
+```bash
+git clone https://github.com/Hotoro-Cloud/hotlabel-infra.git
+cd hotlabel-infra
+```
+
+2. Set up your environment:
+
+```bash
+# Run the setup script to configure environment
+./scripts/setup-env.sh
+```
+
+3. Start the infrastructure:
+
+```bash
+docker-compose -f docker-compose-dev.yml up -d
+```
+
+4. Verify connections:
+
+```bash
+# Check service health
+curl http://localhost:8000/api/v1/quality/health
+
+# Check detailed readiness
+curl http://localhost:8000/api/v1/quality/ready
+```
 
 ### Running Locally
 
@@ -147,6 +181,11 @@ Once the service is running, you can access the API documentation at:
 - `POST /api/v1/admin/golden-sets` - Create a golden set
 - `GET /api/v1/admin/consensus-groups/{consensus_id}` - Get consensus group details
 
+### Health Checks
+
+- `GET /health` - Simple health check
+- `GET /ready` - Detailed readiness check including database and Redis connections
+
 ## Integration with Other Services
 
 The QA service integrates with other HotLabel services:
@@ -154,6 +193,16 @@ The QA service integrates with other HotLabel services:
 - **Task Management Service** - Receives task submissions for validation
 - **User Profiling Service** - Uses user profiles for context-aware validation
 - **Dataset Service** - Provides validated data for model training
+
+## Infrastructure Integration
+
+The QA service is designed to work within the HotLabel infrastructure:
+
+- **Database Connection**: PostgreSQL at `postgres:5432` with database name `hotlabel_qa`
+- **Redis Connection**: Redis cache at `redis:6379` with database number `2`
+- **API Gateway**: Kong routes requests to the service via `/api/v1/quality/*` endpoints
+- **Monitoring**: Prometheus metrics exposed at `/metrics` endpoint
+- **Service Discovery**: Integrated with other services through the docker network
 
 ## Development
 
@@ -171,6 +220,7 @@ hotlabel-qa/
 │   ├── services/         # Business logic
 │   └── main.py           # Application entry point
 ├── migrations/           # Alembic migrations
+├── scripts/              # Utility scripts
 ├── .env.example          # Example environment variables
 ├── docker-compose.yml    # Docker Compose configuration
 ├── Dockerfile            # Docker configuration
