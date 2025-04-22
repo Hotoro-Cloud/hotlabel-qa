@@ -1,39 +1,73 @@
 version: '3.8'
 
 services:
-  api:
-    build: .
+  # Quality Assurance Service
+  qa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hotlabel-qa
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hotlabel_qa
+      - REDIS_URL=redis://redis:6379/2
+      - API_V1_STR=/api/v1
+      - SERVICE_NAME=quality-assurance
+      - TASK_SERVICE_URL=http://tasks:8000/api/v1
+      - USER_SERVICE_URL=http://users:8000/api/v1
     ports:
       - "8002:8000"
     volumes:
       - .:/app
-    env_file:
-      - .env
     depends_on:
-      - db
+      - postgres
       - redis
     networks:
       - hotlabel-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
-  db:
-    image: postgres:13
+  # Database service
+  postgres:
+    image: postgres:15
+    container_name: hotlabel-postgres-local
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=hotlabel_qa
     volumes:
       - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=hotlabel_qa
     ports:
-      - "5434:5432"
+      - "5432:5432"
     networks:
       - hotlabel-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
 
+  # Redis service
   redis:
-    image: redis:6
+    image: redis:7
+    container_name: hotlabel-redis-local
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     networks:
       - hotlabel-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
 
 networks:
   hotlabel-network:
@@ -42,3 +76,4 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
