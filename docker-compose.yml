@@ -14,13 +14,21 @@ services:
       - SERVICE_NAME=quality-assurance
       - TASK_SERVICE_URL=http://tasks:8000/api/v1
       - USER_SERVICE_URL=http://users:8000/api/v1
+      - SECRET_KEY=your-secure-key-here
+      - HIGH_CONFIDENCE_THRESHOLD=0.85
+      - MEDIUM_CONFIDENCE_THRESHOLD=0.60
+      - GOLDEN_SET_PERCENTAGE=0.10
+      - CONSENSUS_REQUIRED_AGREEMENT=0.75
+      - MINIMUM_CONSENSUS_VALIDATORS=3
     ports:
       - "8002:8000"
     volumes:
       - .:/app
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - hotlabel-network
     restart: always
