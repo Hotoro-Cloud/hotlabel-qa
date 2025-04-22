@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Quality Assurance Service configured for HotLabel Infrastructure
+  qa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hotlabel-qa
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/hotlabel_qa
+      - REDIS_URL=redis://redis:6379/2
+      - API_V1_STR=/api/v1
+      - SERVICE_NAME=quality-assurance
+      - TASK_SERVICE_URL=http://tasks:8000/api/v1
+      - USER_SERVICE_URL=http://users:8000/api/v1
+    networks:
+      - hotlabel-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  hotlabel-network:
+    external: true
+    name: hotlabel-network
