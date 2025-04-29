@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from app.db.repositories.validation_repository import ValidationRepository
 from app.models.validation import Validation
 from app.schemas.metrics import ValidationMetricsRequest, QualityMetricsResponse
+from app.db.repositories.metrics_repository import MetricsRepository
 
 logger = logging.getLogger(__name__)
 
@@ -330,3 +331,31 @@ class MetricsService:
                 "average_time_per_task_ms": self._calculate_average_time(validations)
             }
         }
+
+    def create(self, metrics_data):
+        """
+        Create a new metrics record
+        
+        Args:
+            metrics_data: MetricsCreate schema with metrics data
+            
+        Returns:
+            MetricsResponse: The created metrics record
+            
+        Raises:
+            ValueError: If the metrics data is invalid
+        """
+        try:
+            self.logger.info(f"Creating metrics record with validation_id: {metrics_data.validation_id}")
+            
+            # Create a new metrics repository
+            repository = MetricsRepository(self.db)
+            
+            # Create the metrics record
+            metrics = repository.create(metrics_data)
+            
+            self.logger.info(f"Successfully created metrics record with ID: {metrics.id}")
+            return metrics
+        except Exception as e:
+            self.logger.error(f"Error creating metrics record: {str(e)}")
+            raise ValueError(f"Failed to create metrics record: {str(e)}")

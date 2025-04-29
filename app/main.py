@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 
-from app.api.routes import validation, metrics, reports, admin
+from app.api.routes import validation, metrics, reports, admin, consensus
 from app.core.config import settings
 from app.core.exceptions import ServiceException
 from app.db.base_class import *  # Import all models
@@ -49,6 +49,7 @@ app.include_router(validation.validation_router)
 app.include_router(metrics.metrics_router)
 app.include_router(reports.reports_router)
 app.include_router(admin.admin_router)
+app.include_router(consensus.router)
 
 # Exception handlers
 @app.exception_handler(ServiceException)

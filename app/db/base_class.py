@@ -2,7 +2,7 @@
 This module imports all models to make them available for SQLAlchemy.
 It should be imported after all models are defined to avoid circular imports.
 """
-from app.models.task import Task
+from app.models import Task
 from app.models.validation import Validation
 from app.models.consensus import Consensus
 from app.models.validator import Validator

@@ -1,20 +1,52 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
+import uuid
 
 from app.models.metrics import Metrics
 from app.schemas.metrics import MetricsCreate, MetricsUpdate
+import logging
+
+logger = logging.getLogger(__name__)
 
 class MetricsRepository:
     def __init__(self, db: Session):
         self.db = db
     
+    def get_all(self) -> List[Metrics]:
+        """Get all metrics records."""
+        return self.db.query(Metrics).all()
+    
     def create(self, metrics_data: MetricsCreate) -> Metrics:
         """Create a new metrics record."""
-        db_metrics = Metrics(**metrics_data.model_dump())
-        self.db.add(db_metrics)
-        self.db.commit()
-        self.db.refresh(db_metrics)
-        return db_metrics
+        try:
+            # Generate a UUID for the metrics record
+            metrics_id = str(uuid.uuid4())
+            
+            # Convert to dict and handle any nested models
+            data_dict = metrics_data.model_dump()
+            
+            # Create the metrics object with explicit ID
+            db_metrics = Metrics(
+                id=metrics_id,
+                validation_id=data_dict.get("validation_id"),
+                task_id=data_dict.get("task_id"),
+                accuracy=data_dict.get("accuracy", 0.0),
+                precision=data_dict.get("precision", 0.0),
+                recall=data_dict.get("recall", 0.0),
+                f1_score=data_dict.get("f1_score", 0.0),
+                latency_ms=data_dict.get("latency_ms"),
+                custom_metrics=data_dict.get("custom_metrics", {})
+            )
+            
+            self.db.add(db_metrics)
+            self.db.commit()
+            self.db.refresh(db_metrics)
+            logger.info(f"Created metrics record with ID: {metrics_id}")
+            return db_metrics
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Failed to create metrics: {str(e)}")
+            raise ValueError(f"Failed to create metrics: {str(e)}")
     
     def get_by_id(self, metrics_id: str) -> Optional[Metrics]:
         """Get metrics by ID."""

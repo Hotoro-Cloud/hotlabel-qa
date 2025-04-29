@@ -1,7 +1,8 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel
+from app.models.reports import ReportType, ReportStatus
 
 class ReportType(str, Enum):
     AMBIGUOUS_QUESTION = "ambiguous_question"
@@ -16,21 +17,30 @@ class ReportStatus(str, Enum):
     RESOLVED = "resolved"
     DISMISSED = "dismissed"
 
-class QualityReportBase(BaseModel):
-    publisher_id: str
-    session_id: str
-    task_id: str
+class ReportBase(BaseModel):
+    name: str
     report_type: ReportType
-    details: str
-    reported_at: datetime
+    start_date: datetime
+    end_date: datetime
+    filters: Dict[str, List[str]]
 
-class QualityReportCreate(QualityReportBase):
+class ReportCreate(ReportBase):
     pass
 
-class QualityReportResponse(QualityReportBase):
-    report_id: str
-    status: ReportStatus = ReportStatus.RECEIVED
-    estimated_review_time: str = "24 hours"
+class ReportUpdate(BaseModel):
+    status: Optional[ReportStatus] = None
+    content: Optional[Dict[str, Any]] = None
+    summary: Optional[Dict[str, Any]] = None
+    completed_at: Optional[datetime] = None
 
+class ReportResponse(ReportBase):
+    id: str
+    status: ReportStatus
+    content: Optional[Dict[str, Any]] = None
+    summary: Optional[Dict[str, Any]] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    
     class Config:
-        orm_mode = True
+        from_attributes = True

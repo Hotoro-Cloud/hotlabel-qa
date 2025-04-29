@@ -24,11 +24,17 @@ class ValidationStatus(str, enum.Enum):
     NEEDS_REVIEW = "needs_review"
     REVIEW = "review"  # For backward compatibility
 
+class ConfidenceLevel(str, enum.Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    UNKNOWN = "unknown"
+
 class Validation(Base):
     __tablename__ = "validations"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    task_id = Column(String(36), ForeignKey("tasks.id"), nullable=False)
+    task_id = Column(String(36), ForeignKey("qa_tasks.id"), nullable=False)
     validator_id = Column(String(36), ForeignKey("validators.id"), nullable=False)
     consensus_id = Column(String(36), ForeignKey("consensus.id"), nullable=True)
     status = Column(Enum(ValidationStatus), nullable=False)

@@ -6,7 +6,7 @@ from app.db.base import Base
 
 class Task(Base):
     """Task model for storing tasks."""
-    __tablename__ = "tasks"
+    __tablename__ = "qa_tasks"
 
     id = Column(String(36), primary_key=True)
     type = Column(String(50), nullable=False)

@@ -1,20 +1,32 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class QualityMetricBase(BaseModel):
-    metric_type: str
-    value: float
-    weight: float = 1.0
-    metric_metadata: Dict[str, Any] = {}
+    validation_id: str
+    quality_score: float = Field(ge=0.0, le=1.0)
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    issues_detected: Dict[str, Any] = {}
+    time_ms: Optional[int] = None
+    metrics: Dict[str, Any] = {}
 
 class QualityMetricCreate(QualityMetricBase):
-    validation_id: str
+    pass
 
-class QualityMetricResponse(QualityMetricBase):
+class QualityMetricUpdate(BaseModel):
+    quality_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    confidence_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    issues_detected: Optional[Dict[str, Any]] = None
+    time_ms: Optional[int] = None
+    metrics: Optional[Dict[str, Any]] = None
+
+class QualityMetricInDB(QualityMetricBase):
     id: str
-    validation_id: str
     created_at: datetime
-    
+    updated_at: datetime
+
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class QualityMetricResponse(QualityMetricInDB):
+    pass

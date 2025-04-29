@@ -5,13 +5,51 @@ from sqlalchemy.orm import Session
 from app.services.validation_service import ValidationService
 from app.db.repositories.golden_set_repository import GoldenSetRepository
 from app.db.repositories.consensus_repository import ConsensusRepository
+from app.db.repositories.validator_repository import ValidatorRepository
 from app.schemas.golden_set import GoldenSetCreate, GoldenSetResponse
 from app.schemas.consensus import ConsensusResponse
-from app.api.deps import get_validation_service, get_golden_set_repository, get_consensus_repository
+from app.schemas.validator import ValidatorCreate, ValidatorResponse
+from app.api.deps import get_validation_service, get_golden_set_repository, get_consensus_repository, get_validator_repository
 from app.core.exceptions import ResourceNotFound
 from app.db.session import get_db
 
 admin_router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+
+# Validator management
+@admin_router.get("/validators", response_model=List[ValidatorResponse])
+async def get_validators(
+    validator_repo: ValidatorRepository = Depends(get_validator_repository)
+) -> Any:
+    """
+    Get all validators.
+    """
+    try:
+        validators = validator_repo.get_all()
+        return validators
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "code": "internal_error",
+            "message": "An unexpected error occurred",
+            "details": {"error": str(e)}
+        })
+
+@admin_router.post("/validators", response_model=ValidatorResponse)
+async def create_validator(
+    validator: ValidatorCreate,
+    validator_repo: ValidatorRepository = Depends(get_validator_repository)
+) -> Any:
+    """
+    Create a new validator.
+    """
+    try:
+        result = validator_repo.create(validator)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "code": "internal_error",
+            "message": "An unexpected error occurred",
+            "details": {"error": str(e)}
+        })
 
 # Golden Set management
 @admin_router.post("/golden-sets", response_model=GoldenSetResponse)
@@ -72,8 +110,8 @@ async def list_golden_sets(
         if category:
             results = golden_set_repo.list_by_category(category)
         else:
-            # This would need a list_all method in a real implementation
-            results = []
+            # Get all golden sets
+            results = golden_set_repo.get_all()
         return [GoldenSetResponse.from_orm(result) for result in results]
     except Exception as e:
         raise HTTPException(status_code=500, detail={

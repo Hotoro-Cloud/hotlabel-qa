@@ -7,6 +7,10 @@ class GoldenSetRepository:
     def __init__(self, db: Session):
         self.db = db
     
+    def get_all(self) -> List[GoldenSet]:
+        """Get all golden sets"""
+        return self.db.query(GoldenSet).all()
+    
     def create(self, golden_set_data: GoldenSetCreate) -> GoldenSet:
         # Get confidence_score from the original dict if available
         confidence_score = getattr(golden_set_data, "confidence_score", None)

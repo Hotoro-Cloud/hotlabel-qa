@@ -29,7 +29,7 @@ class ConsensusGroupResponse(ConsensusGroupBase):
     validation_count: int = 0
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ConsensusBase(BaseModel):
     task_id: str

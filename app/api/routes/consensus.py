@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+import logging
 
 from app.db.session import get_db
 from app.db.repositories.consensus_repository import ConsensusRepository
@@ -12,7 +13,8 @@ from app.schemas.consensus import (
     ConsensusStatistics
 )
 
-router = APIRouter(prefix="/consensus", tags=["consensus"])
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api/v1/consensus", tags=["consensus"])
 
 @router.post("/", response_model=ConsensusInDB)
 def create_consensus(
@@ -20,16 +22,22 @@ def create_consensus(
     db: Session = Depends(get_db)
 ) -> ConsensusInDB:
     """Create a new consensus record."""
-    repository = ConsensusRepository(db)
-    
-    # Check if consensus already exists for task
-    if repository.get_by_task_id(consensus_create.task_id):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Consensus already exists for task {consensus_create.task_id}"
-        )
-    
-    return repository.create(consensus_create)
+    try:
+        repository = ConsensusRepository(db)
+        
+        # Check if consensus already exists for task
+        if repository.get_by_task_id(consensus_create.task_id):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Consensus already exists for task {consensus_create.task_id}"
+            )
+        
+        return repository.create(consensus_create)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating consensus: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating consensus: {str(e)}")
 
 @router.get("/{task_id}", response_model=ConsensusInDB)
 def get_consensus(
