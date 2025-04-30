@@ -22,7 +22,7 @@ class Metrics(Base):
     latency_ms = Column(Integer, nullable=True)
     
     # Additional metrics
-    custom_metrics = Column(JSON, default=dict)
+    custom_metrics = Column(JSON, nullable=False, default={})
     
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)

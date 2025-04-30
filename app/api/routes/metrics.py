@@ -20,20 +20,21 @@ def list_metrics(
     """List all metrics records."""
     try:
         repository = MetricsRepository(db)
-        return repository.get_all()
+        metrics_list = repository.get_all()
+        # Ensure custom_metrics is never None
+        for metrics in metrics_list:
+            if metrics.custom_metrics is None:
+                metrics.custom_metrics = {}
+        return metrics_list
     except Exception as e:
         logger.error(f"Error listing metrics: {str(e)}")
         logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail={
-                "error": "Internal Server Error",
-                "message": f"Error listing metrics: {str(e)}",
-                "trace": traceback.format_exc()
-            }
+            detail=f"Error listing metrics: {str(e)}"
         )
 
-@metrics_router.post("/", response_model=MetricsResponse, status_code=status.HTTP_201_CREATED)
+@metrics_router.post("", response_model=MetricsResponse, status_code=status.HTTP_201_CREATED)
 def create_metrics(
     metrics_data: MetricsCreate,
     db: Session = Depends(get_db),
@@ -86,17 +87,18 @@ def get_metrics_by_task(
     """Get all metrics for a task."""
     try:
         repository = MetricsRepository(db)
-        return repository.get_by_task_id(task_id)
+        metrics_list = repository.get_by_task_id(task_id)
+        # Ensure custom_metrics is never None
+        for metrics in metrics_list:
+            if metrics.custom_metrics is None:
+                metrics.custom_metrics = {}
+        return metrics_list
     except Exception as e:
         logger.error(f"Error retrieving metrics for task {task_id}: {str(e)}")
         logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail={
-                "error": "Internal Server Error",
-                "message": f"Error retrieving metrics for task {task_id}: {str(e)}",
-                "trace": traceback.format_exc()
-            }
+            detail=f"Error retrieving metrics for task {task_id}: {str(e)}"
         )
 
 @metrics_router.get("/task/{task_id}/summary")

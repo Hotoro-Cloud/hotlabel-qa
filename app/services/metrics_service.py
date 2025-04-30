@@ -346,7 +346,7 @@ class MetricsService:
             ValueError: If the metrics data is invalid
         """
         try:
-            self.logger.info(f"Creating metrics record with validation_id: {metrics_data.validation_id}")
+            logger.info(f"Creating metrics record with validation_id: {metrics_data.validation_id}")
             
             # Create a new metrics repository
             repository = MetricsRepository(self.db)
@@ -354,8 +354,8 @@ class MetricsService:
             # Create the metrics record
             metrics = repository.create(metrics_data)
             
-            self.logger.info(f"Successfully created metrics record with ID: {metrics.id}")
+            logger.info(f"Successfully created metrics record with ID: {metrics.id}")
             return metrics
         except Exception as e:
-            self.logger.error(f"Error creating metrics record: {str(e)}")
+            logger.error(f"Error creating metrics record: {str(e)}")
             raise ValueError(f"Failed to create metrics record: {str(e)}")

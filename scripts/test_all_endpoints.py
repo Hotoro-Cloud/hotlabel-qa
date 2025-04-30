@@ -136,7 +136,7 @@ def test_get_metrics_by_task(task_id: str):
 def test_create_metrics():
     """Test creating new metrics"""
     metrics_data = {
-        "validation_id": str(uuid.uuid4()),
+        "validation_id": VALIDATION_ID,  # Use an existing validation ID
         "task_id": TASK_ID,  # Use our test task ID
         "accuracy": 0.95,
         "precision": 0.92,
@@ -197,8 +197,10 @@ def test_get_consensus_by_id(consensus_id: str):
 
 def test_create_consensus():
     """Test creating a new consensus group"""
+    # Create a unique task ID to avoid the "already exists" error
+    unique_task_id = str(uuid.uuid4())
     consensus_data = {
-        "task_id": TASK_ID,  # Use our test task ID
+        "task_id": unique_task_id,  # Use a unique task ID instead of TASK_ID
         "required_validations": 3,
         "agreement_threshold": 0.7
     }

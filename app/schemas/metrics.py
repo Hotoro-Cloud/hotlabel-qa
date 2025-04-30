@@ -59,6 +59,14 @@ class MetricsInDB(MetricsBase):
 
     class Config:
         from_attributes = True
+        
+    # Ensure custom_metrics is never None in the response
+    @property
+    def custom_metrics(self) -> Dict[str, Any]:
+        return self.__dict__.get("custom_metrics") or {}
 
 class MetricsResponse(MetricsInDB):
-    pass
+    # Ensure custom_metrics is never None in the response
+    @property
+    def custom_metrics(self) -> Dict[str, Any]:
+        return super().custom_metrics or {}
