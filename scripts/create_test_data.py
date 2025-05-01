@@ -194,6 +194,49 @@ def create_test_metrics(validation_id, task_id):
         logger.error(f"Failed to create test metrics: {str(e)}")
         return None
 
+def create_test_task_with_id(task_id):
+    """Create a test task in the qa_tasks table with a specific ID."""
+    try:
+        engine = create_engine(DB_URL)
+        
+        with engine.connect() as conn:
+            # Check if the task already exists
+            result = conn.execute(
+                text("SELECT id FROM qa_tasks WHERE id = :task_id"),
+                {"task_id": task_id}
+            )
+            if result.fetchone():
+                logger.info(f"Task with ID {task_id} already exists.")
+                return task_id
+            
+            # Create the task
+            content = {
+                "image_url": "https://example.com/test-image.jpg",
+                "question": "What is in this image?"
+            }
+            
+            conn.execute(
+                text("""
+                INSERT INTO qa_tasks (id, type, content, status, created_at, updated_at)
+                VALUES (:id, :type, :content, :status, :created_at, :updated_at)
+                """),
+                {
+                    "id": task_id,
+                    "type": "image_classification",
+                    "content": json.dumps(content),
+                    "status": "pending",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            )
+            conn.commit()
+            
+            logger.info(f"Created test task with ID: {task_id}")
+            return task_id
+    except Exception as e:
+        logger.error(f"Failed to create test task with ID {task_id}: {str(e)}")
+        return None
+
 def main():
     """Run the script to create test data."""
     logger.info("Creating test data in the QA database...")
